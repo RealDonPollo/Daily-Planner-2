@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>Daily Planner</title>
+<meta name="description" content="A simple daily to-do planner with calendar, categories and weekly review.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#F4F6F5" id="themeColorMeta">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F4F6F5;
+    --card: #FDFEFD;
+    --ink: #16241E;
+    --muted: #6C7A74;
+    --line: #D9E0DC;
+    --accent: #1F6E52;
+    --accent-soft: #E3EFE9;
+    --flag: #B9822E;
+    --flag-soft: #F6EEDD;
+    --danger: #A4433B;
+    --danger-soft: #F6ECEB;
+    --overlay-bg: rgba(22,36,30,0.35);
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  }
+  [data-theme="dark"] {
+    --paper: #111917;
+    --card: #1A2421;
+    --ink: #E4EBE7;
+    --muted: #8CA096;
+    --line: #2B3833;
+    --accent: #46A87E;
+    --accent-soft: #1F3229;
+    --flag: #D8A44A;
+    --flag-soft: #33291A;
+    --danger: #D0685E;
+    --danger-soft: #33211F;
+    --overlay-bg: rgba(0,0,0,0.55);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    display: flex;
+    justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+    transition: background .2s;
+    overscroll-behavior-y: contain;
+  }
+  .app { width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 14px; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .topbar .title {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+  }
+  .nav-group { display: flex; gap: 6px; }
+  button {
+    font-family: var(--sans); border: 1px solid var(--line); background: var(--card);
+    color: var(--ink); border-radius: 8px; cursor: pointer; font-size: 14px;
+  }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .icon-btn { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; }
+  .today-btn {
+    height: 38px; padding: 0 12px; font-family: var(--mono); font-size: 12px;
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .today-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  .day-head { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px 16px; }
+  .day-head .weekday {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+  }
+  .day-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 2px; }
+  .day-head .bigdate { font-family: var(--mono); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+  .day-head .progress { font-family: var(--mono); font-size: 14px; color: var(--muted); }
+  .day-head .progress b { color: var(--ink); font-weight: 600; }
+  .progress-track { height: 4px; background: var(--line); border-radius: 2px; margin-top: 14px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width .3s ease; }
+
+  .week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .week-day {
+    border: 1px solid var(--line); background: var(--card); border-radius: 10px;
+    padding: 8px 0 7px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .week-day .wd-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
+  .week-day .wd-num { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+  .week-day .wd-dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+  .week-day.has-tasks .wd-dot { background: var(--muted); }
+  .week-day.is-today .wd-label { color: var(--accent); }
+  .week-day.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .week-day.selected .wd-num { color: var(--accent); }
+  .week-day.selected.has-tasks .wd-dot { background: var(--accent); }
+
+  .list-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .add-row { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); align-items: center; }
+  .add-row input {
+    flex: 1; min-width: 0; border: none; background: transparent;
+    font-family: var(--sans); font-size: 16px; color: var(--ink); padding: 8px 6px;
+  }
+  .add-row input:focus { outline: none; }
+  .add-row input::placeholder { color: var(--muted); }
+  .slot-select {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 0 6px; height: 38px;
+  }
+  .add-btn { width: 40px; height: 38px; flex: none; border-radius: 8px; background: var(--accent); border-color: var(--accent); color: #fff; font-size: 20px; line-height: 1; }
+
+  .color-dot-btn {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line); background: var(--card); padding: 0;
+  }
+  .color-dot-btn .cd { width: 14px; height: 14px; border-radius: 50%; background: transparent; border: 1.5px dashed var(--muted); }
+  .color-dot-btn .cd.filled { border: none; }
+
+  .slot-head {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 10px 14px 4px; border-bottom: 1px solid var(--line); background: var(--paper);
+  }
+  ul.tasks { list-style: none; }
+  li.task {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 12px 12px 11px;
+    border-bottom: 1px solid var(--line);
+    border-left: 3px solid transparent;
+  }
+  .checkbox {
+    flex: none; width: 24px; height: 24px; border: 1.5px solid var(--muted); border-radius: 7px;
+    background: transparent; display: inline-flex; align-items: center; justify-content: center;
+    color: transparent; font-size: 14px; transition: background .15s, border-color .15s;
+  }
+  li.task.done .checkbox { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .task-text { flex: 1; font-size: 16px; line-height: 1.35; word-break: break-word; }
+  .task-text .badge {
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; margin-left: 6px; white-space: nowrap;
+  }
+  li.task.done .task-text { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--muted); }
+  li.task.pri:not(.done) .task-text { font-weight: 600; }
+  .flag-btn, .del-btn { flex: none; width: 30px; height: 30px; border: none; background: transparent; color: var(--muted); font-size: 15px; border-radius: 6px; }
+  .flag-btn.on { color: var(--flag); background: var(--flag-soft); }
+  .del-btn:hover { color: var(--danger); background: var(--danger-soft); }
+  .empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+
+  .palette-pop {
+    position: fixed; z-index: 30; display: none;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    flex-direction: column; gap: 2px; min-width: 150px;
+  }
+  .palette-pop.open { display: flex; }
+  .palette-opt {
+    display: flex; align-items: center; gap: 10px;
+    border: none; background: transparent; padding: 8px 10px; border-radius: 8px;
+    font-size: 14px; text-align: left;
+  }
+  .palette-opt:hover { background: var(--paper); }
+  .palette-opt .p-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+  .palette-opt .p-dot.none { border: 1.5px dashed var(--muted); background: transparent; }
+  .palette-opt.current { background: var(--accent-soft); }
+
+  .notes-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .notes-head {
+    width: 100%; display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 14px; border: none; background: transparent;
+    font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); border-radius: 0;
+  }
+  .notes-card textarea {
+    display: block; width: 100%; min-height: 90px; border: none; border-top: 1px solid var(--line);
+    background: transparent; resize: vertical; padding: 12px 14px;
+    font-family: var(--sans); font-size: 15px; line-height: 1.5; color: var(--ink);
+  }
+  .notes-card textarea:focus { outline: none; }
+  .notes-card.collapsed textarea { display: none; }
+
+  .footer-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .foot-btn { height: 38px; padding: 0 13px; font-size: 13px; color: var(--muted); }
+  .foot-btn:hover { color: var(--ink); }
+
+  .overlay {
+    position: fixed; inset: 0; background: var(--overlay-bg);
+    display: none; align-items: center; justify-content: center; padding: 20px; z-index: 10;
+  }
+  .overlay.open { display: flex; }
+  .panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    width: 100%; max-width: 400px; max-height: 85vh; overflow-y: auto; padding: 16px;
+  }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .panel-title { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.06em; }
+
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-dow { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: center; padding: 4px 0; }
+  .cal-cell {
+    aspect-ratio: 1; border: 1px solid transparent; background: transparent; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-family: var(--mono); font-size: 13px; color: var(--ink);
+  }
+  .cal-cell:hover { background: var(--paper); }
+  .cal-cell .c-dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+  .cal-cell.has-tasks .c-dot { background: var(--muted); }
+  .cal-cell.is-today { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .cal-cell.selected { background: var(--accent); color: #fff; }
+  .cal-cell.selected .c-dot { background: rgba(255,255,255,0.8); }
+
+  .rev-row { display: grid; grid-template-columns: 44px 1fr 64px; gap: 10px; align-items: center; padding: 7px 0; }
+  .rev-day { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .rev-day.today { color: var(--accent); font-weight: 600; }
+  .rev-bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .rev-bar > div { height: 100%; background: var(--accent); border-radius: 4px; }
+  .rev-count { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+  .rev-total {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 13px; display: flex; justify-content: space-between;
+  }
+  .rev-sec { margin-top: 14px; }
+  .rev-sec-title { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .rev-carried { font-size: 14px; padding: 5px 0; display: flex; justify-content: space-between; gap: 10px; }
+  .rev-carried .cnt { font-family: var(--mono); font-size: 12px; color: var(--flag); white-space: nowrap; }
+  .rev-note { font-size: 13px; color: var(--muted); line-height: 1.45; }
+
+  .rec-form { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .rec-form input[type=text], .set-input {
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+    font-family: var(--sans); font-size: 15px; background: var(--paper); color: var(--ink); width: 100%;
+  }
+  .rec-form input[type=text]:focus, .set-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .dow-picker { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .dow-chip { padding: 8px 0; font-family: var(--mono); font-size: 11px; text-transform: uppercase; border-radius: 8px; text-align: center; }
+  .dow-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .rec-form-row { display: flex; gap: 8px; align-items: center; }
+  .rec-save { flex: 1; height: 38px; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+  .rec-item { display: flex; align-items: center; gap: 10px; padding: 10px 2px 10px 8px; border-bottom: 1px solid var(--line); border-left: 3px solid transparent; }
+  .rec-item:last-child { border-bottom: none; }
+  .rec-item .rec-text { flex: 1; font-size: 15px; }
+  .rec-item .rec-meta { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .set-sec-title { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 14px 0 8px; }
+  .theme-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .theme-seg button { height: 38px; font-size: 13px; }
+  .theme-seg button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .label-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .label-row .p-dot { width: 16px; height: 16px; border-radius: 50%; flex: none; }
+  .data-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .data-row button { height: 38px; font-size: 13px; }
+
+  .status { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--muted); min-height: 14px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <span class="title">Daily Planner</span>
+    <div class="nav-group">
+      <button class="today-btn" id="todayBtn">Today</button>
+      <button class="icon-btn" id="prevBtn" aria-label="Previous day">&#8249;</button>
+      <button class="icon-btn" id="nextBtn" aria-label="Next day">&#8250;</button>
+      <button class="icon-btn" id="calBtn" aria-label="Open calendar">&#9783;</button>
+    </div>
+  </div>
+
+  <div class="day-head">
+    <div class="weekday" id="weekdayLabel">—</div>
+    <div class="day-head-row">
+      <div class="bigdate" id="bigDate">—</div>
+      <div class="progress" id="progressLabel"></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="week-strip" id="weekStrip"></div>
+
+  <div class="list-card">
+    <div class="add-row">
+      <input type="text" id="taskInput" placeholder="Add a task…" autocomplete="off" enterkeyhint="done">
+      <button class="color-dot-btn" id="addColorBtn" aria-label="Choose colour"><span class="cd" id="addColorDot"></span></button>
+      <select class="slot-select" id="slotSelect" aria-label="Time of day">
+        <option value="any">Anytime</option>
+        <option value="am">Morning</option>
+        <option value="pm">Afternoon</option>
+        <option value="eve">Evening</option>
+      </select>
+      <button class="add-btn" id="addBtn" aria-label="Add task">+</button>
+    </div>
+    <div id="taskSections"></div>
+    <div class="empty" id="emptyMsg" style="display:none;">Nothing planned for this day yet.</div>
+  </div>
+
+  <div class="notes-card collapsed" id="notesCard">
+    <button class="notes-head" id="notesToggle">
+      <span>Notes for this day</span><span id="notesChevron">＋</span>
+    </button>
+    <textarea id="notesArea" placeholder="Anything worth remembering about this day…"></textarea>
+  </div>
+
+  <div class="footer-actions">
+    <button class="foot-btn" id="rolloverBtn">&#8631; Pull unfinished</button>
+    <button class="foot-btn" id="reviewBtn">Weekly review</button>
+    <button class="foot-btn" id="recurringBtn">&#10227; Recurring</button>
+    <button class="foot-btn" id="settingsBtn">&#9881; Settings</button>
+  </div>
+
+  <div class="status" id="statusMsg"></div>
+</div>
+
+<div class="palette-pop" id="palettePop"></div>
+
+<div class="overlay" id="calOverlay">
+  <div class="panel">
+    <div class="panel-head">
+      <button class="icon-btn" id="calPrev" aria-label="Previous month">&#8249;</button>
+      <div class="panel-title" id="calTitle">—</div>
+      <button class="icon-btn" id="calNext" aria-label="Next month">&#8250;</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<div class="overlay" id="revOverlay">
+  <div class="panel">
+    <div class="panel-head">
+      <button class="icon-btn" id="revPrev" aria-label="Previous week">&#8249;</button>
+      <div class="panel-title" id="revTitle">—</div>
+      <button class="icon-btn" id="revNext" aria-label="Next week">&#8250;</button>
+    </div>
+    <div id="revBody"></div>
+  </div>
+</div>
+
+<div class="overlay" id="recOverlay">
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">Recurring tasks</div>
+      <button class="icon-btn" id="recClose" aria-label="Close">×</button>
+    </div>
+    <div class="rec-form">
+      <input type="text" id="recText" placeholder="e.g. Gym" autocomplete="off">
+      <div class="dow-picker" id="recDows"></div>
+      <div class="rec-form-row">
+        <button class="color-dot-btn" id="recColorBtn" aria-label="Choose colour"><span class="cd" id="recColorDot"></span></button>
+        <select class="slot-select" id="recSlot" aria-label="Time of day">
+          <option value="any">Anytime</option>
+          <option value="am">Morning</option>
+          <option value="pm">Afternoon</option>
+          <option value="eve">Evening</option>
+        </select>
+        <button class="rec-save" id="recSave">Add recurring task</button>
+      </div>
+    </div>
+    <div id="recList"></div>
+  </div>
+</div>
+
+<div class="overlay" id="setOverlay">
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title">Settings</div>
+      <button class="icon-btn" id="setClose" aria-label="Close">×</button>
+    </div>
+
+    <div class="set-sec-title">Theme</div>
+    <div class="theme-seg">
+      <button id="themeLight">Light</button>
+      <button id="themeDark">Dark</button>
+      <button id="themeAuto">Auto</button>
+    </div>
+
+    <div class="set-sec-title">Colour labels</div>
+    <div id="labelRows"></div>
+    <div class="rev-note">Name your colours after what they mean — e.g. Work, School, Hobbies.</div>
+
+    <div class="set-sec-title">Your data</div>
+    <div class="data-row">
+      <button id="exportBtn">Export backup</button>
+      <button id="importBtn">Import backup</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <div class="rev-note" style="margin-top:8px;">
+      Everything is stored on this device only. Export writes a JSON file you can keep or move to another device — importing merges it in.
+    </div>
+
+    <div class="set-sec-title">About</div>
+    <div class="rev-note" id="aboutBox">—</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Storage layer (localStorage, with in-memory fallback) ----------
+  const PREFIX = 'planner:';
+  const store = (function () {
+    let ok = true;
+    try {
+      const probe = '__t' + Date.now();
+      localStorage.setItem(probe, '1');
+      localStorage.removeItem(probe);
+    } catch (e) { ok = false; }
+    const mem = {};
+    return {
+      persistent: ok,
+      get(key) {
+        if (!ok) return key in mem ? mem[key] : null;
+        return localStorage.getItem(PREFIX + key);
+      },
+      set(key, value) {
+        if (!ok) { mem[key] = value; return; }
+        try { localStorage.setItem(PREFIX + key, value); }
+        catch (e) { setStatus('Storage full — export a backup and clear old days'); }
+      },
+      remove(key) {
+        if (!ok) { delete mem[key]; return; }
+        localStorage.removeItem(PREFIX + key);
+      },
+      keys(sub) {
+        if (!ok) return Object.keys(mem).filter(k => k.indexOf(sub) === 0);
+        const out = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.indexOf(PREFIX + sub) === 0) out.push(k.slice(PREFIX.length));
+        }
+        return out;
+      }
+    };
+  })();
+
+  // ---------- State ----------
+  let currentDate = new Date();
+  let calMonth = new Date();
+  let revWeekStart = null;
+  let dayData = { tasks: [], notes: '', dismissed: [] };
+  let recurring = [];
+  let daysWithData = new Set();
+  let settings = { theme: 'auto', labels: {} };
+  let saveTimer = null;
+  let recDowState = [false,false,false,false,false,false,false];
+  let addColor = null;
+  let recColor = null;
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const SLOTS = [
+    { id: 'am',  label: 'Morning'   },
+    { id: 'pm',  label: 'Afternoon' },
+    { id: 'eve', label: 'Evening'   },
+    { id: 'any', label: 'Anytime'   }
+  ];
+  const SLOT_LABEL = { am: 'Morning', pm: 'Afternoon', eve: 'Evening', any: 'Anytime' };
+  const COLORS = [
+    { id: 'blue',   hex: '#4A7DBF', name: 'Blue'   },
+    { id: 'red',    hex: '#C05045', name: 'Red'    },
+    { id: 'yellow', hex: '#D9A62E', name: 'Yellow' },
+    { id: 'green',  hex: '#4E9B6F', name: 'Green'  },
+    { id: 'purple', hex: '#8A6FBF', name: 'Purple' },
+    { id: 'teal',   hex: '#3E9DA6', name: 'Teal'   }
+  ];
+  function colorHex(id) { const c = COLORS.find(c => c.id === id); return c ? c.hex : null; }
+  function colorLabel(id) {
+    const c = COLORS.find(c => c.id === id);
+    if (!c) return 'No colour';
+    return (settings.labels && settings.labels[id]) ? settings.labels[id] : c.name;
+  }
+
+  // ---------- Helpers ----------
+  function dateKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function storageKey(d) { return 'day:' + dateKey(d); }
+  function sameDay(a, b) { return dateKey(a) === dateKey(b); }
+  function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function mondayOf(d) { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+  function weekdayIdx(d) { return (d.getDay() + 6) % 7; }
+  function isoWeek(d) {
+    const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dow = x.getUTCDay() || 7;
+    x.setUTCDate(x.getUTCDate() + 4 - dow);
+    const yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+    return Math.ceil((((x - yearStart) / 86400000) + 1) / 7);
+  }
+  function uid() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
+  function setStatus(msg) {
+    const el = document.getElementById('statusMsg');
+    if (!el) return;
+    el.textContent = msg;
+    if (msg) setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3000);
+  }
+  function normalizeDay(raw) {
+    if (Array.isArray(raw)) return { tasks: raw, notes: '', dismissed: [] };
+    return { tasks: raw.tasks || [], notes: raw.notes || '', dismissed: raw.dismissed || [] };
+  }
+  function isEmptyDay(data) {
+    return data.tasks.length === 0 && !(data.notes || '').trim() && data.dismissed.length === 0;
+  }
+  function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ---------- Data access ----------
+  function loadDayRaw(d) {
+    const v = store.get(storageKey(d));
+    if (!v) return { tasks: [], notes: '', dismissed: [] };
+    try { return normalizeDay(JSON.parse(v)); }
+    catch (e) { return { tasks: [], notes: '', dismissed: [] }; }
+  }
+
+  function loadDay(d) {
+    const data = loadDayRaw(d);
+    const dk = dateKey(d);
+    const wd = weekdayIdx(d);
+    let changed = false;
+    recurring.forEach(rule => {
+      if (!rule.days[wd]) return;
+      if (rule.start && dk < rule.start) return;
+      const exists = data.tasks.some(t => t.recurringId === rule.id);
+      const dismissed = data.dismissed.indexOf(rule.id) !== -1;
+      if (!exists && !dismissed) {
+        data.tasks.push({ id: uid(), text: rule.text, done: false, slot: rule.slot || 'any', pri: false, carried: 0, color: rule.color || null, recurringId: rule.id });
+        changed = true;
+      }
+    });
+    return { data: data, changed: changed };
+  }
+
+  function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveCurrentDay, 300); }
+
+  function saveCurrentDay() {
+    const key = storageKey(currentDate);
+    const dk = dateKey(currentDate);
+    if (isEmptyDay(dayData)) {
+      store.remove(key);
+      daysWithData.delete(dk);
+    } else {
+      store.set(key, JSON.stringify(dayData));
+      daysWithData.add(dk);
+    }
+    renderWeekStrip();
+  }
+
+  function saveRecurring() {
+    if (recurring.length === 0) store.remove('recurring');
+    else store.set('recurring', JSON.stringify(recurring));
+  }
+  function loadRecurring() {
+    const v = store.get('recurring');
+    try { recurring = v ? JSON.parse(v) : []; } catch (e) { recurring = []; }
+  }
+  function saveSettings() { store.set('settings', JSON.stringify(settings)); }
+  function loadSettings() {
+    const v = store.get('settings');
+    if (!v) return;
+    try { settings = Object.assign({ theme: 'auto', labels: {} }, JSON.parse(v)); } catch (e) {}
+  }
+  function loadDayIndex() {
+    daysWithData = new Set(store.keys('day:').map(k => k.replace('day:', '')));
+  }
+
+  // ---------- Theme ----------
+  const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function effectiveTheme() {
+    if (settings.theme === 'dark') return 'dark';
+    if (settings.theme === 'light') return 'light';
+    return (darkQuery && darkQuery.matches) ? 'dark' : 'light';
+  }
+  function applyTheme() {
+    const t = effectiveTheme();
+    document.documentElement.setAttribute('data-theme', t);
+    const meta = document.getElementById('themeColorMeta');
+    if (meta) meta.setAttribute('content', t === 'dark' ? '#111917' : '#F4F6F5');
+    ['themeLight','themeDark','themeAuto'].forEach(id => {
+      const on = (id === 'themeLight' && settings.theme === 'light') ||
+                 (id === 'themeDark' && settings.theme === 'dark') ||
+                 (id === 'themeAuto' && settings.theme === 'auto');
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('on', on);
+    });
+  }
+  if (darkQuery && darkQuery.addEventListener) {
+    darkQuery.addEventListener('change', () => { if (settings.theme === 'auto') applyTheme(); });
+  }
+
+  // ---------- Colour palette popover ----------
+  function openPalette(anchorEl, currentColor, onPick) {
+    const pop = document.getElementById('palettePop');
+    pop.innerHTML = '';
+    const options = [{ id: null }].concat(COLORS);
+    options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'palette-opt' + ((opt.id || null) === (currentColor || null) ? ' current' : '');
+      const dot = document.createElement('span');
+      dot.className = 'p-dot' + (opt.id ? '' : ' none');
+      if (opt.id) dot.style.background = colorHex(opt.id);
+      const label = document.createElement('span');
+      label.textContent = opt.id ? colorLabel(opt.id) : 'No colour';
+      btn.appendChild(dot); btn.appendChild(label);
+      btn.addEventListener('click', e => { e.stopPropagation(); closePalette(); onPick(opt.id || null); });
+      pop.appendChild(btn);
+    });
+    const r = anchorEl.getBoundingClientRect();
+    pop.classList.add('open');
+    const pw = pop.offsetWidth, ph = pop.offsetHeight;
+    let left = Math.min(r.left, window.innerWidth - pw - 10);
+    let top = r.bottom + 6;
+    if (top + ph > window.innerHeight - 10) top = Math.max(10, r.top - ph - 6);
+    pop.style.left = Math.max(10, left) + 'px';
+    pop.style.top = top + 'px';
+  }
+  function closePalette() { document.getElementById('palettePop').classList.remove('open'); }
+  document.addEventListener('click', e => {
+    const pop = document.getElementById('palettePop');
+    if (pop.classList.contains('open') && !pop.contains(e.target)) closePalette();
+  }, true);
+
+  function paintDot(el, color) {
+    el.classList.toggle('filled', !!color);
+    el.style.background = color ? colorHex(color) : 'transparent';
+    el.style.border = color ? 'none' : '';
+  }
+
+  // ---------- Rendering ----------
+  function renderHeader() {
+    const today = new Date();
+    document.getElementById('weekdayLabel').textContent = currentDate.toLocaleDateString('en-GB', { weekday: 'long' });
+    document.getElementById('bigDate').textContent =
+      String(currentDate.getDate()).padStart(2,'0') + ' ' + MONTHS[currentDate.getMonth()].slice(0,3) + ' ' + currentDate.getFullYear();
+    document.getElementById('todayBtn').classList.toggle('active', sameDay(currentDate, today));
+    const done = dayData.tasks.filter(t => t.done).length;
+    const total = dayData.tasks.length;
+    document.getElementById('progressLabel').innerHTML = total === 0 ? '' : '<b>' + done + '</b>/' + total + ' done';
+    document.getElementById('progressFill').style.width = total === 0 ? '0%' : Math.round((done/total)*100) + '%';
+  }
+
+  function renderWeekStrip() {
+    const strip = document.getElementById('weekStrip');
+    strip.innerHTML = '';
+    const start = mondayOf(currentDate);
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(start, i);
+      const btn = document.createElement('button');
+      btn.className = 'week-day';
+      if (sameDay(d, currentDate)) btn.classList.add('selected');
+      if (sameDay(d, today)) btn.classList.add('is-today');
+      if (daysWithData.has(dateKey(d))) btn.classList.add('has-tasks');
+      btn.innerHTML = '<span class="wd-label">' + DOW[i] + '</span><span class="wd-num">' + String(d.getDate()).padStart(2,'0') + '</span><span class="wd-dot"></span>';
+      btn.addEventListener('click', () => goToDate(d));
+      strip.appendChild(btn);
+    }
+  }
+
+  function renderTasks() {
+    const wrap = document.getElementById('taskSections');
+    const empty = document.getElementById('emptyMsg');
+    wrap.innerHTML = '';
+    empty.style.display = dayData.tasks.length === 0 ? 'block' : 'none';
+    const usedSlots = new Set(dayData.tasks.map(t => t.slot || 'any'));
+
+    SLOTS.forEach(slot => {
+      const slotTasks = dayData.tasks.filter(t => (t.slot || 'any') === slot.id)
+        .slice().sort((a, b) => (b.pri === true) - (a.pri === true));
+      if (slotTasks.length === 0) return;
+
+      if (usedSlots.size > 1 || !usedSlots.has('any')) {
+        const head = document.createElement('div');
+        head.className = 'slot-head';
+        head.textContent = slot.label;
+        wrap.appendChild(head);
+      }
+
+      const ul = document.createElement('ul');
+      ul.className = 'tasks';
+      slotTasks.forEach(t => {
+        const li = document.createElement('li');
+        li.className = 'task' + (t.done ? ' done' : '') + (t.pri ? ' pri' : '');
+        if (t.color) li.style.borderLeftColor = colorHex(t.color);
+
+        const cb = document.createElement('button');
+        cb.className = 'checkbox';
+        cb.setAttribute('aria-label', t.done ? 'Mark as not done' : 'Mark as done');
+        cb.textContent = '✓';
+        cb.addEventListener('click', () => { t.done = !t.done; renderTasks(); renderHeader(); scheduleSave(); });
+
+        const span = document.createElement('span');
+        span.className = 'task-text';
+        span.textContent = t.text;
+        const badges = [];
+        if (t.recurringId) badges.push('↻');
+        if (t.carried >= 1) badges.push('carried ' + t.carried + '×');
+        badges.forEach(b => {
+          const bEl = document.createElement('span');
+          bEl.className = 'badge';
+          bEl.textContent = b;
+          span.appendChild(bEl);
+        });
+
+        const colBtn = document.createElement('button');
+        colBtn.className = 'color-dot-btn';
+        colBtn.setAttribute('aria-label', 'Change colour — ' + colorLabel(t.color));
+        colBtn.title = colorLabel(t.color);
+        const colDot = document.createElement('span');
+        colDot.className = 'cd';
+        paintDot(colDot, t.color);
+        colBtn.appendChild(colDot);
+        colBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          openPalette(colBtn, t.color, picked => { t.color = picked; renderTasks(); scheduleSave(); });
+        });
+
+        const flag = document.createElement('button');
+        flag.className = 'flag-btn' + (t.pri ? ' on' : '');
+        flag.setAttribute('aria-label', t.pri ? 'Remove priority' : 'Mark as priority');
+        flag.textContent = '⚑';
+        flag.addEventListener('click', () => { t.pri = !t.pri; renderTasks(); scheduleSave(); });
+
+        const del = document.createElement('button');
+        del.className = 'del-btn';
+        del.setAttribute('aria-label', 'Delete task');
+        del.textContent = '×';
+        del.addEventListener('click', () => {
+          dayData.tasks = dayData.tasks.filter(x => x.id !== t.id);
+          if (t.recurringId && dayData.dismissed.indexOf(t.recurringId) === -1) dayData.dismissed.push(t.recurringId);
+          renderTasks(); renderHeader(); scheduleSave();
+        });
+
+        li.appendChild(cb); li.appendChild(span); li.appendChild(colBtn); li.appendChild(flag); li.appendChild(del);
+        ul.appendChild(li);
+      });
+      wrap.appendChild(ul);
+    });
+  }
+
+  function renderNotes() {
+    const area = document.getElementById('notesArea');
+    area.value = dayData.notes || '';
+    const card = document.getElementById('notesCard');
+    const hasNotes = !!(dayData.notes && dayData.notes.trim());
+    card.classList.toggle('collapsed', !hasNotes);
+    document.getElementById('notesChevron').textContent = hasNotes ? '−' : '＋';
+  }
+
+  function renderCalendar() {
+    document.getElementById('calTitle').textContent = MONTHS[calMonth.getMonth()] + ' ' + calMonth.getFullYear();
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+    DOW.forEach(d => {
+      const c = document.createElement('div');
+      c.className = 'cal-dow';
+      c.textContent = d.slice(0,2);
+      grid.appendChild(c);
+    });
+    const first = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+    const lead = (first.getDay() + 6) % 7;
+    const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 0).getDate();
+    const today = new Date();
+    for (let i = 0; i < lead; i++) grid.appendChild(document.createElement('div'));
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), day);
+      const cell = document.createElement('button');
+      cell.className = 'cal-cell';
+      if (sameDay(d, today)) cell.classList.add('is-today');
+      if (sameDay(d, currentDate)) cell.classList.add('selected');
+      if (daysWithData.has(dateKey(d))) cell.classList.add('has-tasks');
+      cell.innerHTML = '<span>' + day + '</span><span class="c-dot"></span>';
+      cell.addEventListener('click', () => { closeOverlay('calOverlay'); goToDate(d); });
+      grid.appendChild(cell);
+    }
+  }
+
+  function renderReview() {
+    const start = revWeekStart;
+    const end = addDays(start, 6);
+    document.getElementById('revTitle').textContent =
+      'Week ' + isoWeek(start) + ' · ' + start.getDate() + ' ' + MONTHS[start.getMonth()].slice(0,3) +
+      ' – ' + end.getDate() + ' ' + MONTHS[end.getMonth()].slice(0,3);
+
+    const days = [];
+    for (let i = 0; i < 7; i++) days.push(loadDayRaw(addDays(start, i)));
+
+    const today = new Date();
+    let weekDone = 0, weekTotal = 0;
+    const carried = [];
+    const byColor = {};
+    let html = '';
+
+    days.forEach((d, i) => {
+      const date = addDays(start, i);
+      const done = d.tasks.filter(t => t.done).length;
+      const total = d.tasks.length;
+      weekDone += done; weekTotal += total;
+      d.tasks.forEach(t => {
+        if ((t.carried || 0) >= 2 && !t.done) carried.push({ text: t.text, n: t.carried });
+        const c = t.color || 'none';
+        if (!byColor[c]) byColor[c] = { done: 0, total: 0 };
+        byColor[c].total++;
+        if (t.done) byColor[c].done++;
+      });
+      const pct = total === 0 ? 0 : Math.round((done/total)*100);
+      html += '<div class="rev-row">' +
+        '<span class="rev-day' + (sameDay(date, today) ? ' today' : '') + '">' + DOW[i] + ' ' + String(date.getDate()).padStart(2,'0') + '</span>' +
+        '<span class="rev-bar"><div style="width:' + pct + '%"></div></span>' +
+        '<span class="rev-count">' + (total === 0 ? '—' : done + '/' + total) + '</span>' +
+        '</div>';
+    });
+
+    const weekPct = weekTotal === 0 ? 0 : Math.round((weekDone/weekTotal)*100);
+    html += '<div class="rev-total"><span>Week total</span><span><b>' + weekDone + '</b>/' + weekTotal + ' · ' + weekPct + '%</span></div>';
+
+    const colorIds = Object.keys(byColor).filter(c => c !== 'none');
+    if (colorIds.length > 0) {
+      html += '<div class="rev-sec"><div class="rev-sec-title">By category</div>';
+      colorIds.forEach(cid => {
+        const s = byColor[cid];
+        const pct = Math.round((s.done / s.total) * 100);
+        html += '<div class="rev-row">' +
+          '<span class="rev-day" style="display:flex;align-items:center;gap:6px;">' +
+            '<span style="width:10px;height:10px;border-radius:50%;background:' + colorHex(cid) + ';display:inline-block;"></span>' +
+          '</span>' +
+          '<span class="rev-bar"><div style="width:' + pct + '%;background:' + colorHex(cid) + ';"></div></span>' +
+          '<span class="rev-count">' + s.done + '/' + s.total + '</span>' +
+          '</div>' +
+          '<div class="rev-note" style="margin:-4px 0 4px 54px;">' + escapeHtml(colorLabel(cid)) + '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (carried.length > 0) {
+      html += '<div class="rev-sec"><div class="rev-sec-title">Carried over repeatedly</div>';
+      carried.forEach(c => {
+        html += '<div class="rev-carried"><span>' + escapeHtml(c.text) + '</span><span class="cnt">' + c.n + '× carried</span></div>';
+      });
+      html += '<div class="rev-note">These keep slipping — worth deciding: schedule them properly, or drop them.</div></div>';
+    }
+    document.getElementById('revBody').innerHTML = html;
+  }
+
+  function renderRecDows() {
+    const wrap = document.getElementById('recDows');
+    wrap.innerHTML = '';
+    DOW.forEach((label, i) => {
+      const chip = document.createElement('button');
+      chip.className = 'dow-chip' + (recDowState[i] ? ' on' : '');
+      chip.textContent = label.slice(0,2);
+      chip.addEventListener('click', () => { recDowState[i] = !recDowState[i]; renderRecDows(); });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function renderRecList() {
+    const wrap = document.getElementById('recList');
+    wrap.innerHTML = '';
+    if (recurring.length === 0) {
+      wrap.innerHTML = '<div class="rev-note">No recurring tasks yet. They appear automatically on the chosen weekdays.</div>';
+      return;
+    }
+    recurring.forEach(rule => {
+      const item = document.createElement('div');
+      item.className = 'rec-item';
+      if (rule.color) item.style.borderLeftColor = colorHex(rule.color);
+      const days = rule.days.map((on, i) => on ? DOW[i].slice(0,2) : null).filter(Boolean).join(' ');
+      const text = document.createElement('div');
+      text.className = 'rec-text';
+      text.textContent = rule.text;
+      const meta = document.createElement('span');
+      meta.className = 'rec-meta';
+      meta.textContent = days + ' · ' + SLOT_LABEL[rule.slot || 'any'] + (rule.color ? ' · ' + colorLabel(rule.color) : '');
+      text.appendChild(meta);
+      const del = document.createElement('button');
+      del.className = 'del-btn';
+      del.setAttribute('aria-label', 'Delete recurring task');
+      del.textContent = '×';
+      del.addEventListener('click', () => {
+        recurring = recurring.filter(r => r.id !== rule.id);
+        saveRecurring();
+        renderRecList();
+        setStatus('Recurring task removed (existing days keep their copy)');
+      });
+      item.appendChild(text); item.appendChild(del);
+      wrap.appendChild(item);
+    });
+  }
+
+  function renderLabelRows() {
+    const wrap = document.getElementById('labelRows');
+    wrap.innerHTML = '';
+    COLORS.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'label-row';
+      const dot = document.createElement('span');
+      dot.className = 'p-dot';
+      dot.style.background = c.hex;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'set-input';
+      input.placeholder = c.name;
+      input.value = (settings.labels && settings.labels[c.id]) || '';
+      input.addEventListener('input', () => {
+        if (!settings.labels) settings.labels = {};
+        const v = input.value.trim();
+        if (v) settings.labels[c.id] = v; else delete settings.labels[c.id];
+        saveSettings();
+      });
+      row.appendChild(dot); row.appendChild(input);
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderAbout() {
+    const installed = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    const dayCount = daysWithData.size;
+    document.getElementById('aboutBox').innerHTML =
+      'Daily Planner · ' + dayCount + ' day' + (dayCount === 1 ? '' : 's') + ' stored on this device.<br>' +
+      (store.persistent ? '' : '<b>Warning:</b> this browser is blocking local storage, so nothing will be saved between visits.<br>') +
+      (installed ? 'Running as an installed app.' : 'Running in the browser — use “Add to Home Screen” / “Install” to get an app icon.');
+  }
+
+  // ---------- Navigation ----------
+  function goToDate(d) {
+    clearTimeout(saveTimer);
+    saveCurrentDay();
+    currentDate = new Date(d);
+    calMonth = new Date(d);
+    const res = loadDay(currentDate);
+    dayData = res.data;
+    renderHeader(); renderWeekStrip(); renderTasks(); renderNotes();
+    if (res.changed) scheduleSave();
+  }
+  function openOverlay(id) { document.getElementById(id).classList.add('open'); }
+  function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
+
+  // ---------- Actions ----------
+  function addTask() {
+    const input = document.getElementById('taskInput');
+    const text = input.value.trim();
+    if (!text) return;
+    const slot = document.getElementById('slotSelect').value;
+    dayData.tasks.push({ id: uid(), text: text, done: false, slot: slot, pri: false, carried: 0, color: addColor });
+    input.value = '';
+    input.focus();
+    renderTasks(); renderHeader(); scheduleSave();
+  }
+
+  function rolloverFromYesterday() {
+    const yesterday = addDays(currentDate, -1);
+    const yData = loadDayRaw(yesterday);
+    const movable = yData.tasks.filter(t => !t.done && !t.recurringId);
+    if (movable.length === 0) { setStatus('No unfinished tasks to pull from yesterday'); return; }
+    const remaining = yData.tasks.filter(t => t.done || t.recurringId);
+    const newYData = Object.assign({}, yData, { tasks: remaining });
+    if (isEmptyDay(newYData)) {
+      store.remove(storageKey(yesterday));
+      daysWithData.delete(dateKey(yesterday));
+    } else {
+      store.set(storageKey(yesterday), JSON.stringify(newYData));
+    }
+    movable.forEach(t => dayData.tasks.push(Object.assign({}, t, { done: false, carried: (t.carried || 0) + 1 })));
+    renderTasks(); renderHeader(); scheduleSave();
+    setStatus('Moved ' + movable.length + ' task' + (movable.length > 1 ? 's' : '') + ' here');
+  }
+
+  function addRecurringRule() {
+    const input = document.getElementById('recText');
+    const text = input.value.trim();
+    if (!text) { setStatus('Give the recurring task a name'); return; }
+    if (!recDowState.some(Boolean)) { setStatus('Pick at least one weekday'); return; }
+    recurring.push({
+      id: uid(), text: text, days: recDowState.slice(),
+      slot: document.getElementById('recSlot').value,
+      color: recColor, start: dateKey(new Date())
+    });
+    saveRecurring();
+    input.value = '';
+    recDowState = [false,false,false,false,false,false,false];
+    recColor = null;
+    paintDot(document.getElementById('recColorDot'), null);
+    renderRecDows(); renderRecList();
+    const res = loadDay(currentDate);
+    if (res.changed) { dayData = res.data; renderTasks(); renderHeader(); scheduleSave(); }
+    setStatus('Recurring task added');
+  }
+
+  // ---------- Export / import ----------
+  function exportBackup() {
+    const days = {};
+    store.keys('day:').forEach(k => { days[k.replace('day:', '')] = JSON.parse(store.get(k) || 'null'); });
+    const payload = { app: 'daily-planner', version: 1, exported: new Date().toISOString(), settings: settings, recurring: recurring, days: days };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'planner-backup-' + dateKey(new Date()) + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus('Backup downloaded');
+  }
+
+  function importBackup(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try { data = JSON.parse(reader.result); }
+      catch (e) { setStatus('That file is not a valid backup'); return; }
+      if (!data || data.app !== 'daily-planner' || !data.days) { setStatus('That file is not a planner backup'); return; }
+
+      let added = 0, merged = 0;
+      Object.keys(data.days).forEach(dk => {
+        const incoming = normalizeDay(data.days[dk]);
+        const existingRaw = store.get('day:' + dk);
+        if (!existingRaw) {
+          store.set('day:' + dk, JSON.stringify(incoming));
+          added++;
+        } else {
+          const existing = normalizeDay(JSON.parse(existingRaw));
+          const seen = new Set(existing.tasks.map(t => t.text + '|' + (t.slot || 'any')));
+          incoming.tasks.forEach(t => {
+            if (!seen.has(t.text + '|' + (t.slot || 'any'))) existing.tasks.push(t);
+          });
+          if (incoming.notes && incoming.notes.trim() && incoming.notes !== existing.notes) {
+            existing.notes = (existing.notes ? existing.notes + '\n\n' : '') + incoming.notes;
+          }
+          incoming.dismissed.forEach(id => { if (existing.dismissed.indexOf(id) === -1) existing.dismissed.push(id); });
+          store.set('day:' + dk, JSON.stringify(existing));
+          merged++;
+        }
+      });
+
+      if (Array.isArray(data.recurring)) {
+        const have = new Set(recurring.map(r => r.text + '|' + r.days.join('')));
+        data.recurring.forEach(r => {
+          if (!have.has(r.text + '|' + r.days.join(''))) recurring.push(r);
+        });
+        saveRecurring();
+      }
+      if (data.settings && data.settings.labels) {
+        settings.labels = Object.assign({}, data.settings.labels, settings.labels);
+        saveSettings();
+      }
+
+      loadDayIndex();
+      const res = loadDay(currentDate);
+      dayData = res.data;
+      renderHeader(); renderWeekStrip(); renderTasks(); renderNotes(); renderAbout();
+      setStatus('Imported — ' + added + ' new day' + (added === 1 ? '' : 's') + ', ' + merged + ' merged');
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Events ----------
+  document.getElementById('addBtn').addEventListener('click', addTask);
+  document.getElementById('taskInput').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+  document.getElementById('prevBtn').addEventListener('click', () => goToDate(addDays(currentDate, -1)));
+  document.getElementById('nextBtn').addEventListener('click', () => goToDate(addDays(currentDate, 1)));
+  document.getElementById('todayBtn').addEventListener('click', () => goToDate(new Date()));
+  document.getElementById('rolloverBtn').addEventListener('click', rolloverFromYesterday);
+
+  document.getElementById('addColorBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    openPalette(e.currentTarget, addColor, picked => {
+      addColor = picked;
+      paintDot(document.getElementById('addColorDot'), picked);
+    });
+  });
+  document.getElementById('recColorBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    openPalette(e.currentTarget, recColor, picked => {
+      recColor = picked;
+      paintDot(document.getElementById('recColorDot'), picked);
+    });
+  });
+
+  document.getElementById('notesToggle').addEventListener('click', () => {
+    const card = document.getElementById('notesCard');
+    card.classList.toggle('collapsed');
+    document.getElementById('notesChevron').textContent = card.classList.contains('collapsed') ? '＋' : '−';
+    if (!card.classList.contains('collapsed')) document.getElementById('notesArea').focus();
+  });
+  document.getElementById('notesArea').addEventListener('input', e => { dayData.notes = e.target.value; scheduleSave(); });
+
+  document.getElementById('calBtn').addEventListener('click', () => { calMonth = new Date(currentDate); renderCalendar(); openOverlay('calOverlay'); });
+  document.getElementById('calPrev').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()-1, 1); renderCalendar(); });
+  document.getElementById('calNext').addEventListener('click', () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1); renderCalendar(); });
+
+  document.getElementById('reviewBtn').addEventListener('click', () => { revWeekStart = mondayOf(currentDate); renderReview(); openOverlay('revOverlay'); });
+  document.getElementById('revPrev').addEventListener('click', () => { revWeekStart = addDays(revWeekStart, -7); renderReview(); });
+  document.getElementById('revNext').addEventListener('click', () => { revWeekStart = addDays(revWeekStart, 7); renderReview(); });
+
+  document.getElementById('recurringBtn').addEventListener('click', () => { renderRecDows(); renderRecList(); openOverlay('recOverlay'); });
+  document.getElementById('recClose').addEventListener('click', () => closeOverlay('recOverlay'));
+  document.getElementById('recSave').addEventListener('click', addRecurringRule);
+  document.getElementById('recText').addEventListener('keydown', e => { if (e.key === 'Enter') addRecurringRule(); });
+
+  document.getElementById('settingsBtn').addEventListener('click', () => { renderLabelRows(); applyTheme(); renderAbout(); openOverlay('setOverlay'); });
+  document.getElementById('setClose').addEventListener('click', () => closeOverlay('setOverlay'));
+  document.getElementById('themeLight').addEventListener('click', () => { settings.theme = 'light'; applyTheme(); saveSettings(); });
+  document.getElementById('themeDark').addEventListener('click', () => { settings.theme = 'dark'; applyTheme(); saveSettings(); });
+  document.getElementById('themeAuto').addEventListener('click', () => { settings.theme = 'auto'; applyTheme(); saveSettings(); });
+  document.getElementById('exportBtn').addEventListener('click', exportBackup);
+  document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+  document.getElementById('importFile').addEventListener('change', e => {
+    if (e.target.files && e.target.files[0]) importBackup(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  ['calOverlay','revOverlay','recOverlay','setOverlay'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+      if (e.target === document.getElementById(id)) closeOverlay(id);
+    });
+  });
+
+  // Flush pending saves when the app is backgrounded or closed
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(saveTimer); saveCurrentDay(); } });
+  window.addEventListener('pagehide', () => { clearTimeout(saveTimer); saveCurrentDay(); });
+
+  // If the app was left open overnight and you were sitting on "today",
+  // move the view to the new today when you come back to it.
+  let viewingToday = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') { viewingToday = sameDay(currentDate, new Date()); return; }
+    if (viewingToday && !sameDay(currentDate, new Date())) goToDate(new Date());
+  });
+
+  // ---------- Init ----------
+  loadSettings();
+  applyTheme();
+  loadRecurring();
+  loadDayIndex();
+  (function () {
+    const res = loadDay(currentDate);
+    dayData = res.data;
+    renderHeader(); renderWeekStrip(); renderTasks(); renderNotes();
+    if (res.changed) scheduleSave();
+    if (!store.persistent) setStatus('This browser blocks local storage — data will not persist');
+  })();
+
+  // ---------- Service worker ----------
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+})();
+</script>
+</body>
+</html>
